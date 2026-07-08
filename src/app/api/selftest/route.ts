@@ -65,11 +65,12 @@ export async function GET(req: NextRequest) {
     // 4. Analysis
     const bundle = (await getEngagementBundle(supabase, engagementId))!;
     let analysis = analyzeEngagement(bundle);
-    const expectTxns = bundle.transactions.length > 400;
+    // Fixture totals: 231 bank txns (194 operating + 36 payroll + specials)
+    // and 144 facts (12 canonical categories × 12 months).
     checks.push({
       name: "ingestion",
-      pass: expectTxns && bundle.facts.length > 100,
-      detail: `${bundle.transactions.length} txns, ${bundle.facts.length} facts, ${bundle.accounts.length} accounts`,
+      pass: bundle.transactions.length === 231 && bundle.facts.length === 144 && bundle.accounts.length === 2,
+      detail: `${bundle.transactions.length} txns, ${bundle.facts.length} facts, ${bundle.accounts.length} accounts (expect 231/144/2)`,
     });
     checks.push({
       name: "auto_classification",
