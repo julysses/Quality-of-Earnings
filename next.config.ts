@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The demo-seed server action reads fixture CSVs from disk; make sure they
+  // ship with the serverless bundle on Vercel.
+  outputFileTracingIncludes: {
+    "/dashboard": ["./fixtures/**/*"],
+    "/": ["./fixtures/**/*"],
+  },
 };
 
 export default nextConfig;
