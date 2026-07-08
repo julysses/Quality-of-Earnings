@@ -1,0 +1,143 @@
+{
+  "company": "Bluebird HVAC LLC",
+  "period": {
+    "start": "2024-01",
+    "end": "2024-12"
+  },
+  "months": [
+    {
+      "month": "2024-01",
+      "bookRevenueCents": 14520000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 13747600,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-02",
+      "bookRevenueCents": 15280000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 13996400,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-03",
+      "bookRevenueCents": 16840000,
+      "revenueVarianceCents": 5000000,
+      "revenueFlagged": true,
+      "bookCashExpensesCents": 14769200,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-04",
+      "bookRevenueCents": 17590000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 15134200,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-05",
+      "bookRevenueCents": 18930000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 15783400,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-06",
+      "bookRevenueCents": 20170000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 18894600,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-07",
+      "bookRevenueCents": 21450000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 17021000,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-08",
+      "bookRevenueCents": 20890000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 16748200,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-09",
+      "bookRevenueCents": 18620000,
+      "revenueVarianceCents": 1800000,
+      "revenueFlagged": true,
+      "bookCashExpensesCents": 15725600,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-10",
+      "bookRevenueCents": 17240000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 15041200,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-11",
+      "bookRevenueCents": 15860000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 14356800,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    },
+    {
+      "month": "2024-12",
+      "bookRevenueCents": 14910000,
+      "revenueVarianceCents": 0,
+      "revenueFlagged": false,
+      "bookCashExpensesCents": 13935800,
+      "expenseVarianceCents": 0,
+      "expenseFlagged": false
+    }
+  ],
+  "flaggedMonths": [
+    "2024-03",
+    "2024-09"
+  ],
+  "autoClassifications": {
+    "transferPairs": 12,
+    "ownerDraws": 12
+  },
+  "bridge": {
+    "revenueCents": 212300000,
+    "cogsCents": 80674000,
+    "opexCents": 91100000,
+    "ownerCompCents": 12000000,
+    "daCents": 3600000,
+    "interestCents": 1380000,
+    "taxesCents": 0,
+    "netIncomeCents": 23546000,
+    "ebitdaCents": 28526000,
+    "adjustedEbitdaCents": 36486000
+  },
+  "addbacks": {
+    "clubDuesCents": 1020000,
+    "personalLeaseCents": 1440000,
+    "settlementCents": 2500000,
+    "ownerCompNormalizationCents": 3000000
+  }
+}
