@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/dashboard": ["./fixtures/**/*"],
     "/": ["./fixtures/**/*"],
+    "/api/selftest": ["./fixtures/**/*"],
   },
 };
 

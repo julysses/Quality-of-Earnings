@@ -5,6 +5,9 @@ import { Badge, Button, Card } from "@/components/ui";
 import type { EngagementRow } from "@/lib/db-types";
 import { SignOutButton } from "@/components/signout";
 
+// Demo seeding pushes ~530 transactions through the real pipeline.
+export const maxDuration = 60;
+
 export default async function Dashboard() {
   const supabase = await createClient();
   const {

@@ -4,6 +4,9 @@ import { ConfirmDocForm } from "@/components/confirm-doc";
 import { Badge, Callout, Card, Table, Td, Th } from "@/components/ui";
 import { DOC_TYPE_LABELS } from "@/lib/types";
 
+// Upload-complete actions parse statements inline.
+export const maxDuration = 60;
+
 export default async function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { bundle, analysis } = await loadAnalysis(id);

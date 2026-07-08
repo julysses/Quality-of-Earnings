@@ -10,6 +10,7 @@ import Uppy, { type Meta, type UppyFile } from "@uppy/core";
 import Tus from "@uppy/tus";
 import Dashboard from "@uppy/react/dashboard";
 import { createClient } from "@/lib/supabase/client";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase/config";
 import { documentUploadComplete } from "@/lib/server/actions";
 import { Callout } from "./ui";
 
@@ -36,12 +37,12 @@ export function Uploader({ orgId, engagementId }: { orgId: string; engagementId:
     supabase.auth.getSession().then(({ data }) => {
       accessToken = data.session?.access_token ?? null;
       uppy.use(Tus, {
-        endpoint: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/upload/resumable`,
+        endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
         chunkSize: SIX_MB,
         allowedMetaFields: ["bucketName", "objectName", "contentType", "cacheControl"],
         headers: {
           authorization: `Bearer ${accessToken}`,
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          apikey: SUPABASE_ANON_KEY,
         },
       });
     });

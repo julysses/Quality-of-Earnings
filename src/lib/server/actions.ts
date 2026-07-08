@@ -2,9 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { createClient } from "../supabase/server";
+import { seedDemoCore } from "./demo";
 import { classifyByRules, classifyWithAI } from "../ai/classifier";
 import { ingestDocument, isParseable } from "./ingest";
 import { logAudit } from "./audit";
@@ -402,128 +401,12 @@ export async function finalizeEngagement(formData: FormData) {
   revalidatePath(`/engagements/${engagementId}`, "layout");
 }
 
-// ── Demo engagement ─────────────────────────────────────────────────────────
-// Seeds Bluebird HVAC through the REAL pipeline: uploads fixture files to
-// storage, registers + classifies + ingests them, then adds two example
-// evidence-linked add-backs.
 
-const DEMO_FILES = [
-  "Bluebird-Operating-4821-Bank-Statement-2024.csv",
-  "Bluebird-Payroll-Account-9917-Statement-2024.csv",
-  "Bluebird-PnL-2024.csv",
-];
-
+// Seeds Bluebird HVAC through the real pipeline (see ./demo.ts) and jumps
+// straight into the engagement.
 export async function seedDemoEngagement() {
   const { supabase, user } = await requireUser();
   const orgId = await ensureOrg();
-
-  const { data: engagement, error } = await supabase
-    .from("engagements")
-    .insert({
-      org_id: orgId,
-      name: "Demo — Project Bluebird",
-      entity_name: "Bluebird HVAC LLC",
-      period_start: "2024-01-01",
-      period_end: "2024-12-31",
-      is_demo: true,
-      created_by: user.id,
-    })
-    .select("*")
-    .single<EngagementRow>();
-  if (error || !engagement) throw new Error(error?.message ?? "Could not create demo engagement.");
-
-  for (const fileName of DEMO_FILES) {
-    const content = await readFile(join(process.cwd(), "fixtures", fileName));
-    const documentId = crypto.randomUUID();
-    const storagePath = `${orgId}/${engagement.id}/${documentId}/${fileName}`;
-    const { error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(storagePath, content, { contentType: "text/csv" });
-    if (uploadError) throw new Error(`Demo upload failed: ${uploadError.message}`);
-
-    await documentUploadComplete({
-      documentId,
-      engagementId: engagement.id,
-      fileName,
-      storagePath,
-      mimeType: "text/csv",
-      sizeBytes: content.byteLength,
-    });
-  }
-
-  // Two example add-backs with real evidence links; the rest are left for the
-  // user to discover (country club dues, owner comp normalization).
-  const { data: settlementTxn } = await supabase
-    .from("transactions")
-    .select("id")
-    .eq("engagement_id", engagement.id)
-    .ilike("description", "%Litigation Settlement%")
-    .maybeSingle();
-  const { data: pnlDoc } = await supabase
-    .from("documents")
-    .select("id")
-    .eq("engagement_id", engagement.id)
-    .eq("doc_type", "pnl")
-    .maybeSingle();
-  const { data: leaseTxns } = await supabase
-    .from("transactions")
-    .select("id")
-    .eq("engagement_id", engagement.id)
-    .ilike("description", "%BMW Financial%")
-    .limit(12);
-
-  if (settlementTxn && pnlDoc) {
-    const { data: adj } = await supabase
-      .from("adjustments")
-      .insert({
-        org_id: orgId,
-        engagement_id: engagement.id,
-        name: "One-time litigation settlement",
-        category: "one_time",
-        rationale:
-          "June 2024 settlement of the Reynolds warranty dispute — a non-recurring legal cost unrelated to ongoing operations.",
-        amount_cents: 2_500_000,
-        created_by: user.id,
-      })
-      .select("id")
-      .single();
-    if (adj) {
-      await supabase.from("adjustment_evidence").insert([
-        { org_id: orgId, adjustment_id: adj.id, document_id: pnlDoc.id },
-        { org_id: orgId, adjustment_id: adj.id, transaction_id: settlementTxn.id },
-      ]);
-    }
-  }
-  if (leaseTxns && leaseTxns.length === 12) {
-    const { data: adj } = await supabase
-      .from("adjustments")
-      .insert({
-        org_id: orgId,
-        engagement_id: engagement.id,
-        name: "Owner's personal vehicle lease",
-        category: "personal_expense",
-        rationale:
-          "Monthly BMW lease is the owner's personal vehicle, paid from the operating account and booked to vehicle expense. Will not continue post-close.",
-        amount_cents: 1_440_000,
-        created_by: user.id,
-      })
-      .select("id")
-      .single();
-    if (adj) {
-      await supabase
-        .from("adjustment_evidence")
-        .insert(leaseTxns.map((t) => ({ org_id: orgId, adjustment_id: adj.id, transaction_id: t.id })));
-    }
-  }
-
-  await logAudit(supabase, {
-    orgId,
-    engagementId: engagement.id,
-    userId: user.id,
-    action: "engagement.demo_seeded",
-    entityType: "engagement",
-    entityId: engagement.id,
-  });
-
-  redirect(`/engagements/${engagement.id}`);
+  const engagementId = await seedDemoCore(supabase, orgId, user.id);
+  redirect(`/engagements/${engagementId}`);
 }
