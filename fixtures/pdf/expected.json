@@ -1,0 +1,129 @@
+{
+  "bank": [
+    {
+      "date": "2024-02-02",
+      "description": "ACH - Riverside Plumbing Supply",
+      "amountCents": -421055,
+      "balanceCents": 4578945
+    },
+    {
+      "date": "2024-02-05",
+      "description": "Deposit - Customer Invoice 1042",
+      "amountCents": 1250000,
+      "balanceCents": 5828945
+    },
+    {
+      "date": "2024-02-09",
+      "description": "Check 1051 - Metro Insurance Co",
+      "amountCents": -187500,
+      "balanceCents": 5641445
+    },
+    {
+      "date": "2024-02-14",
+      "description": "(Reversal) NSF Fee Refund",
+      "amountCents": 3500,
+      "balanceCents": 5644945
+    },
+    {
+      "date": "2024-02-18",
+      "description": "Deposit - Customer Invoice 1043",
+      "amountCents": 980000,
+      "balanceCents": 6624945
+    },
+    {
+      "date": "2024-02-22",
+      "description": "ACH - Payroll Gusto Inc",
+      "amountCents": -1432010,
+      "balanceCents": 5192935
+    },
+    {
+      "date": "2024-02-26",
+      "description": "Wire - Equipment Lease Payment",
+      "amountCents": -210000,
+      "balanceCents": 4982935
+    },
+    {
+      "date": "2024-02-28",
+      "description": "Deposit - Customer Invoice 1044",
+      "amountCents": 725000,
+      "balanceCents": 5707935
+    }
+  ],
+  "pnl": [
+    {
+      "month": "2024-01",
+      "categoryKey": "revenue",
+      "amountCents": 14200000
+    },
+    {
+      "month": "2024-02",
+      "categoryKey": "revenue",
+      "amountCents": 14850000
+    },
+    {
+      "month": "2024-03",
+      "categoryKey": "revenue",
+      "amountCents": 15620000
+    },
+    {
+      "month": "2024-01",
+      "categoryKey": "cogs",
+      "amountCents": 5680000
+    },
+    {
+      "month": "2024-02",
+      "categoryKey": "cogs",
+      "amountCents": 5940000
+    },
+    {
+      "month": "2024-03",
+      "categoryKey": "cogs",
+      "amountCents": 6248000
+    },
+    {
+      "month": "2024-01",
+      "categoryKey": "wages",
+      "amountCents": 3850000
+    },
+    {
+      "month": "2024-02",
+      "categoryKey": "wages",
+      "amountCents": 3850000
+    },
+    {
+      "month": "2024-03",
+      "categoryKey": "wages",
+      "amountCents": 4020000
+    },
+    {
+      "month": "2024-01",
+      "categoryKey": "owner_comp",
+      "amountCents": 900000
+    },
+    {
+      "month": "2024-02",
+      "categoryKey": "owner_comp",
+      "amountCents": 900000
+    },
+    {
+      "month": "2024-03",
+      "categoryKey": "owner_comp",
+      "amountCents": 900000
+    },
+    {
+      "month": "2024-01",
+      "categoryKey": "rent",
+      "amountCents": 520000
+    },
+    {
+      "month": "2024-02",
+      "categoryKey": "rent",
+      "amountCents": 520000
+    },
+    {
+      "month": "2024-03",
+      "categoryKey": "rent",
+      "amountCents": 520000
+    }
+  ]
+}

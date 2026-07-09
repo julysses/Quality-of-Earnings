@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
     "/": ["./fixtures/**/*"],
     "/api/selftest": ["./fixtures/**/*"],
   },
+  // pdfjs-dist does its own Node/browser environment detection and dynamic
+  // requires (fs, path) that confuse bundlers — run it unbundled from
+  // node_modules on the server instead.
+  serverExternalPackages: ["pdfjs-dist"],
 };
 
 export default nextConfig;

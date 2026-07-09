@@ -7,10 +7,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseBankCsv, type ParsedBankRow } from "../parsers/bank-csv";
 import { parseOfx } from "../parsers/ofx";
 import { parsePnlCsv } from "../parsers/pnl-csv";
+import { parseBankPdf } from "../parsers/bank-pdf";
+import { parsePnlPdf } from "../parsers/pnl-pdf";
+import { extractPdfViaVision, isVisionFallbackEnabled } from "../ai/pdf-vision";
 import { autoClassify } from "../engine/auto-classify";
 import { logAudit } from "./audit";
 import type { DocumentRow, EngagementRow, TransactionRow } from "../db-types";
-import type { BankTxn } from "../types";
+import type { BankTxn, Fact } from "../types";
 
 export interface IngestResult {
   ok: boolean;
@@ -20,11 +23,27 @@ export interface IngestResult {
   factsInserted?: number;
 }
 
-const PARSEABLE_EXTENSIONS = new Set(["csv", "ofx", "qfx", "qbo"]);
+const PARSEABLE_EXTENSIONS = new Set(["csv", "ofx", "qfx", "qbo", "pdf"]);
+
+// Below this many extracted characters, a PDF is almost certainly a scanned
+// image with no text layer — text extraction can't help, only vision can.
+const MIN_TEXT_LAYER_LENGTH = 40;
 
 export function isParseable(fileName: string, docType: string): boolean {
   const ext = fileName.toLowerCase().split(".").pop() ?? "";
   return PARSEABLE_EXTENSIONS.has(ext) && (docType === "bank_statement" || docType === "pnl");
+}
+
+interface BankParseResult {
+  rows: ParsedBankRow[];
+  errors: string[];
+  source: "csv" | "ofx" | "pdf_text" | "pdf_vision";
+}
+interface PnlParseResult {
+  facts: Fact[];
+  warnings: string[];
+  errors: string[];
+  source: "csv" | "pdf_text" | "pdf_vision";
 }
 
 export async function ingestDocument(
@@ -47,15 +66,69 @@ export async function ingestDocument(
   if (downloadError || !blob) {
     return fail(`Could not download the file: ${downloadError?.message ?? "unknown error"}`);
   }
-  const content = await blob.text();
+
+  const ext = doc.file_name.toLowerCase().split(".").pop() ?? "";
 
   if (doc.doc_type === "bank_statement") {
-    return ingestBankStatement(supabase, doc, engagement, userId, content);
+    const parsed = await parseBankInput(ext, blob, doc.file_name);
+    return ingestBankStatement(supabase, doc, engagement, userId, parsed);
   }
   if (doc.doc_type === "pnl") {
-    return ingestPnl(supabase, doc, engagement, userId, content);
+    const parsed = await parsePnlInput(ext, blob, doc.file_name);
+    return ingestPnl(supabase, doc, engagement, userId, parsed);
   }
   return fail(`Don't know how to parse a "${doc.doc_type}" document yet.`);
+}
+
+async function parseBankInput(ext: string, blob: Blob, fileName: string): Promise<BankParseResult> {
+  if (ext === "pdf") {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const textResult = await parseBankPdf(bytes);
+    if (textResult.rows.length > 0 || textResult.extractedTextLength >= MIN_TEXT_LAYER_LENGTH) {
+      return { rows: textResult.rows, errors: textResult.errors, source: "pdf_text" };
+    }
+    // No usable text layer — likely a scanned statement. Try Claude vision
+    // if configured; never blocks the pipeline if it isn't.
+    if (isVisionFallbackEnabled()) {
+      const vision = await extractPdfViaVision(bytes, fileName, "bank_statement");
+      return { rows: vision.rows ?? [], errors: vision.errors, source: "pdf_vision" };
+    }
+    return {
+      rows: [],
+      errors: [
+        "This looks like a scanned PDF with no selectable text, so it can't be read automatically. Try exporting the statement as CSV instead, or upload a digitally-generated PDF.",
+      ],
+      source: "pdf_text",
+    };
+  }
+  const content = await blob.text();
+  const parsed = ext === "csv" ? parseBankCsv(content) : parseOfx(content);
+  return { rows: parsed.rows, errors: parsed.errors, source: ext === "csv" ? "csv" : "ofx" };
+}
+
+async function parsePnlInput(ext: string, blob: Blob, fileName: string): Promise<PnlParseResult> {
+  if (ext === "pdf") {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const textResult = await parsePnlPdf(bytes);
+    if (textResult.facts.length > 0 || textResult.extractedTextLength >= MIN_TEXT_LAYER_LENGTH) {
+      return { facts: textResult.facts, warnings: textResult.warnings, errors: textResult.errors, source: "pdf_text" };
+    }
+    if (isVisionFallbackEnabled()) {
+      const vision = await extractPdfViaVision(bytes, fileName, "pnl");
+      return { facts: vision.facts ?? [], warnings: [], errors: vision.errors, source: "pdf_vision" };
+    }
+    return {
+      facts: [],
+      warnings: [],
+      errors: [
+        "This looks like a scanned PDF with no selectable text, so it can't be read automatically. Try exporting the P&L as CSV instead, or upload a digitally-generated PDF.",
+      ],
+      source: "pdf_text",
+    };
+  }
+  const content = await blob.text();
+  const parsed = parsePnlCsv(content);
+  return { facts: parsed.facts, warnings: parsed.warnings, errors: parsed.errors, source: "csv" };
 }
 
 async function ingestBankStatement(
@@ -63,10 +136,8 @@ async function ingestBankStatement(
   doc: DocumentRow,
   engagement: EngagementRow,
   userId: string,
-  content: string,
+  parsed: BankParseResult,
 ): Promise<IngestResult> {
-  const ext = doc.file_name.toLowerCase().split(".").pop() ?? "";
-  const parsed = ext === "csv" ? parseBankCsv(content) : parseOfx(content);
   if (parsed.rows.length === 0) {
     const message = parsed.errors[0] ?? "No transactions found in this file.";
     await supabase.from("documents").update({ status: "failed", parse_error: message }).eq("id", doc.id);
@@ -128,12 +199,13 @@ async function ingestBankStatement(
     action: "document.ingested",
     entityType: "document",
     entityId: doc.id,
-    detail: { docType: "bank_statement", transactions: rows.length, account: accountName },
+    detail: { docType: "bank_statement", transactions: rows.length, account: accountName, source: parsed.source },
   });
 
+  const sourceNote = parsed.source === "pdf_text" ? " (extracted from PDF)" : parsed.source === "pdf_vision" ? " (extracted from scanned PDF via AI)" : "";
   return {
     ok: true,
-    message: `Loaded ${rows.length} transactions into "${accountName}".`,
+    message: `Loaded ${rows.length} transactions into "${accountName}"${sourceNote}.`,
     warnings: parsed.errors,
     transactionsInserted: rows.length,
   };
@@ -144,11 +216,15 @@ async function ingestPnl(
   doc: DocumentRow,
   engagement: EngagementRow,
   userId: string,
-  content: string,
+  parsed: PnlParseResult,
 ): Promise<IngestResult> {
-  const parsed = parsePnlCsv(content);
-  if (parsed.errors.length > 0 || parsed.facts.length === 0) {
+  if (parsed.errors.length > 0 && parsed.facts.length === 0) {
     const message = parsed.errors[0] ?? "No monthly figures found in this file.";
+    await supabase.from("documents").update({ status: "failed", parse_error: message }).eq("id", doc.id);
+    return { ok: false, message, warnings: parsed.warnings };
+  }
+  if (parsed.facts.length === 0) {
+    const message = "No monthly figures found in this file.";
     await supabase.from("documents").update({ status: "failed", parse_error: message }).eq("id", doc.id);
     return { ok: false, message, warnings: parsed.warnings };
   }
@@ -187,12 +263,13 @@ async function ingestPnl(
     action: "document.ingested",
     entityType: "document",
     entityId: doc.id,
-    detail: { docType: "pnl", facts: rows.length, warnings: parsed.warnings.length },
+    detail: { docType: "pnl", facts: rows.length, warnings: parsed.warnings.length, source: parsed.source },
   });
 
+  const sourceNote = parsed.source === "pdf_text" ? " (extracted from PDF)" : parsed.source === "pdf_vision" ? " (extracted from scanned PDF via AI)" : "";
   return {
     ok: true,
-    message: `Loaded ${rows.length} monthly P&L figures.`,
+    message: `Loaded ${rows.length} monthly P&L figures${sourceNote}.`,
     warnings: parsed.warnings,
     factsInserted: rows.length,
   };

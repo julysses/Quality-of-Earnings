@@ -119,7 +119,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
 
         <Card
           title={`Documents (${bundle.documents.length})`}
-          subtitle="Files are classified automatically; CSV bank statements and P&Ls parse straight into the ledger. PDFs are stored as evidence (PDF extraction ships in the next release)."
+          subtitle="Files are classified automatically; CSV and PDF bank statements and P&Ls parse straight into the ledger. Scanned PDFs with no selectable text need AI extraction to be configured."
         >
           {bundle.documents.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted">

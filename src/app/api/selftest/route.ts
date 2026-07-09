@@ -12,6 +12,9 @@ import { seedDemoCore } from "@/lib/server/demo";
 import { getEngagementBundle } from "@/lib/server/data";
 import { analyzeEngagement } from "@/lib/analysis";
 import { isQuickBooksDesktopFile, QUICKBOOKS_DESKTOP_GUIDANCE } from "@/lib/ai/classifier";
+import { ingestDocument, type IngestResult } from "@/lib/server/ingest";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -177,7 +180,36 @@ export async function GET(req: NextRequest) {
       detail: dscr?.tiers.map((t) => `${t.tier}:${t.ratio?.toFixed(3)}`).join(" ") ?? "no dscr",
     });
 
-    // 8. QuickBooks Desktop file handling: never fake-parsed, always guided.
+    // 8. PDF text-layer extraction: upload the golden PDF fixture through the
+    // real ingestion pipeline and confirm it parses to the expected figures.
+    const pdfBytes = await readFile(join(process.cwd(), "fixtures", "pdf", "Riverside-Plumbing-PnL-Q1-2024.pdf"));
+    const pdfDocId = crypto.randomUUID();
+    const pdfStoragePath = `${orgId}/${engagementId}/${pdfDocId}/Riverside-Plumbing-PnL-Q1-2024.pdf`;
+    await supabase.storage.from("documents").upload(pdfStoragePath, pdfBytes, { contentType: "application/pdf" });
+    const { data: pdfDoc } = await supabase
+      .from("documents")
+      .insert({
+        id: pdfDocId,
+        org_id: orgId,
+        engagement_id: engagementId,
+        file_name: "Riverside-Plumbing-PnL-Q1-2024.pdf",
+        storage_path: pdfStoragePath,
+        mime_type: "application/pdf",
+        doc_type: "pnl",
+        status: "uploaded",
+      })
+      .select("*")
+      .single();
+    const pdfIngestResult: IngestResult = pdfDoc
+      ? await ingestDocument(supabase, pdfDoc, bundle.engagement, userId)
+      : { ok: false, message: "document insert failed", warnings: [] };
+    checks.push({
+      name: "pdf_extraction",
+      pass: pdfIngestResult.ok && pdfIngestResult.factsInserted === 15,
+      detail: `${pdfIngestResult.message} (expect 15 facts)`,
+    });
+
+    // 9. QuickBooks Desktop file handling: never fake-parsed, always guided.
     checks.push({
       name: "qb_desktop_detector",
       pass:

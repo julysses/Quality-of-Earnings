@@ -90,7 +90,7 @@ export function Uploader({ orgId, engagementId }: { orgId: string; engagementId:
       <Dashboard
         uppy={uppy}
         height={260}
-        note="Drag & drop bank statements (CSV/OFX/QFX), the monthly P&L (CSV), tax returns, agings — whole folders welcome. CSV and OFX parse instantly; PDFs are stored for evidence (PDF extraction ships in the next release)."
+        note="Drag & drop bank statements (CSV/OFX/QFX/PDF), the monthly P&L (CSV/PDF), tax returns, agings — whole folders welcome. Digitally-generated PDFs parse automatically; scanned PDFs are read by AI when configured."
         proudlyDisplayPoweredByUppy={false}
       />
       {notes.length > 0 && (
