@@ -14,6 +14,26 @@ export interface Classification {
   source: "rules" | "ai";
 }
 
+// QuickBooks Desktop file extensions — proprietary, undocumented, and (in
+// current versions) encrypted binary formats. No software can read them
+// without QuickBooks Desktop itself; there is no legitimate parser to write.
+// Deliberately excludes "qbo": that extension is already used by the
+// unrelated OFX-style bank-download format our OFX parser handles.
+const QUICKBOOKS_DESKTOP_EXTENSIONS = new Set(["qbb", "qbw", "qbm", "qbx", "qba"]);
+
+export function isQuickBooksDesktopFile(fileName: string): boolean {
+  const ext = fileName.toLowerCase().split(".").pop() ?? "";
+  return QUICKBOOKS_DESKTOP_EXTENSIONS.has(ext);
+}
+
+export const QUICKBOOKS_DESKTOP_GUIDANCE =
+  "This is a QuickBooks Desktop file, which is a proprietary format that can only be opened by QuickBooks Desktop itself — no software, including this one, can read it directly.\n\n" +
+  "To get this data in:\n" +
+  "1. Open the file in QuickBooks Desktop (or a free 30-day trial) — restore the backup if it's a .QBB.\n" +
+  "2. Run the report you need (Profit & Loss, or a bank register) and export it: File > Export > Reports to Excel, then save as CSV.\n" +
+  "3. Drag the exported CSV in here — it will be picked up automatically.\n\n" +
+  "If the business uses QuickBooks Online instead of Desktop, exporting a report the same way (Reports > export to Excel) works too.";
+
 const TYPE_RULES: Array<{ re: RegExp; type: DocType }> = [
   { re: /(balance.?sheet)/i, type: "balance_sheet" },
   { re: /(p\s*&\s*l|pnl|profit|income.?statement)/i, type: "pnl" },

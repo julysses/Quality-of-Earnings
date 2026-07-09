@@ -48,6 +48,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
   ];
 
   const needsReview = bundle.documents.filter((d) => d.status === "needs_review");
+  const unsupported = bundle.documents.filter((d) => d.status === "unsupported");
   const hasCompletenessIssue =
     bundle.transactions.length > 0 &&
     (completeness.breaks.length > 0 || completeness.missingMonths.length > 0);
@@ -79,6 +80,12 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
       </div>
 
       <div id="verify" className="space-y-4">
+        {unsupported.map((d) => (
+          <Callout key={d.id} tone="warn" title={`"${d.file_name}" needs a different format`}>
+            <div className="space-y-1 whitespace-pre-line">{d.parse_error}</div>
+          </Callout>
+        ))}
+
         {needsReview.length > 0 && (
           <Callout tone="warn" title={`${needsReview.length} document(s) need a quick confirmation`}>
             We weren&apos;t sure what these files are. Pick the type below and they&apos;ll be
@@ -174,7 +181,8 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                           <Badge tone="red">failed</Badge>
                         </span>
                       )}
-                      {d.parse_error && (
+                      {d.status === "unsupported" && <Badge tone="yellow">needs different format</Badge>}
+                      {d.status === "failed" && d.parse_error && (
                         <p className="mt-1 max-w-64 text-xs text-bad">{d.parse_error}</p>
                       )}
                     </Td>

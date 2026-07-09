@@ -12,7 +12,7 @@ import { autoClassify } from "@/lib/engine/auto-classify";
 import { computeProofOfCash } from "@/lib/engine/proof-of-cash";
 import { computeBridge, scrutinyFromEvidence } from "@/lib/engine/ebitda-bridge";
 import { checkCompleteness } from "@/lib/engine/continuity";
-import { classifyByRules } from "@/lib/ai/classifier";
+import { classifyByRules, isQuickBooksDesktopFile } from "@/lib/ai/classifier";
 import { parseMoneyCents, formatCents } from "@/lib/money";
 import type { BankTxn, TxnClass } from "@/lib/types";
 
@@ -106,6 +106,30 @@ describe("classifier rules", () => {
 
     expect(classifyByRules("export.qfx").docType).toBe("bank_statement");
     expect(classifyByRules("randomfile.bin").docType).toBe("unclassified");
+  });
+});
+
+describe("QuickBooks Desktop file detection", () => {
+  it("flags QuickBooks Desktop file extensions", () => {
+    expect(isQuickBooksDesktopFile("Company Backup.QBB")).toBe(true);
+    expect(isQuickBooksDesktopFile("acme.qbw")).toBe(true);
+    expect(isQuickBooksDesktopFile("acme.qbm")).toBe(true);
+    expect(isQuickBooksDesktopFile("accountants-copy.qbx")).toBe(true);
+    expect(isQuickBooksDesktopFile("accountants-copy.qba")).toBe(true);
+  });
+
+  it("does not flag the unrelated .qbo bank-download format", () => {
+    // .qbo is Quicken/QuickBooks' OFX-style bank-transaction-download format,
+    // handled by the OFX parser — a completely different, readable format
+    // that happens to share Intuit's naming, not a QuickBooks company file.
+    expect(isQuickBooksDesktopFile("chase-download.qbo")).toBe(false);
+  });
+
+  it("does not flag ordinary supported formats", () => {
+    expect(isQuickBooksDesktopFile("statement.csv")).toBe(false);
+    expect(isQuickBooksDesktopFile("statement.ofx")).toBe(false);
+    expect(isQuickBooksDesktopFile("statement.pdf")).toBe(false);
+    expect(isQuickBooksDesktopFile("noextension")).toBe(false);
   });
 });
 

@@ -24,7 +24,12 @@ export function Uploader({ orgId, engagementId }: { orgId: string; engagementId:
     return new Uppy<Meta, Record<string, never>>({
       restrictions: {
         maxFileSize: 100 * 1024 * 1024,
-        allowedFileTypes: [".csv", ".ofx", ".qfx", ".qbo", ".pdf", ".xlsx", ".xls", ".png", ".jpg", ".jpeg"],
+        allowedFileTypes: [
+          ".csv", ".ofx", ".qfx", ".qbo", ".pdf", ".xlsx", ".xls", ".png", ".jpg", ".jpeg",
+          // QuickBooks Desktop files are accepted so the upload can show
+          // guidance instead of being silently rejected by the browser picker.
+          ".qbb", ".qbw", ".qbm", ".qbx", ".qba",
+        ],
       },
       autoProceed: true,
     });

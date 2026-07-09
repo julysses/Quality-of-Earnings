@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "../supabase/server";
 import { seedDemoCore } from "./demo";
-import { classifyByRules, classifyWithAI } from "../ai/classifier";
+import {
+  classifyByRules,
+  classifyWithAI,
+  isQuickBooksDesktopFile,
+  QUICKBOOKS_DESKTOP_GUIDANCE,
+} from "../ai/classifier";
 import { ingestDocument, isParseable } from "./ingest";
 import { logAudit } from "./audit";
 import { getEngagementBundle } from "./data";
@@ -87,6 +92,43 @@ export async function documentUploadComplete(input: {
     .eq("id", input.engagementId)
     .maybeSingle<EngagementRow>();
   if (!engagement) return { ok: false, message: "Engagement not found." };
+
+  // QuickBooks Desktop files (.QBB/.QBW/...) are a proprietary, unreadable
+  // binary format — never attempt classification or parsing. Store the file
+  // for the record and show guidance instead of a confusing "failed" state.
+  if (isQuickBooksDesktopFile(input.fileName)) {
+    const { data: doc, error } = await supabase
+      .from("documents")
+      .insert({
+        id: input.documentId,
+        org_id: engagement.org_id,
+        engagement_id: engagement.id,
+        file_name: input.fileName,
+        storage_path: input.storagePath,
+        mime_type: input.mimeType,
+        size_bytes: input.sizeBytes,
+        doc_type: "other",
+        classification_source: "rules",
+        classification_confidence: 1,
+        status: "unsupported",
+        parse_error: QUICKBOOKS_DESKTOP_GUIDANCE,
+      })
+      .select("id")
+      .single();
+    if (error || !doc) return { ok: false, message: error?.message ?? "Could not save document." };
+
+    await logAudit(supabase, {
+      orgId: engagement.org_id,
+      engagementId: engagement.id,
+      userId: user.id,
+      action: "document.uploaded",
+      entityType: "document",
+      entityId: doc.id,
+      detail: { fileName: input.fileName, classifiedAs: "quickbooks_desktop_unsupported" },
+    });
+    revalidatePath(`/engagements/${engagement.id}`, "layout");
+    return { ok: true, message: "That's a QuickBooks Desktop file — see the guidance below for how to get the data in." };
+  }
 
   // Sample text content (when it's a text format) to help classification.
   let sample: string | undefined;

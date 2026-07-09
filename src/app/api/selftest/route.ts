@@ -11,6 +11,7 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase/config";
 import { seedDemoCore } from "@/lib/server/demo";
 import { getEngagementBundle } from "@/lib/server/data";
 import { analyzeEngagement } from "@/lib/analysis";
+import { isQuickBooksDesktopFile, QUICKBOOKS_DESKTOP_GUIDANCE } from "@/lib/ai/classifier";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -174,6 +175,36 @@ export async function GET(req: NextRequest) {
         dscr.tiers.every((t) => t.ratio != null && t.meetsMarketThreshold) &&
         Math.abs((dscr.tiers.find((t) => t.tier === "all_addbacks")!.ratio ?? 0) - 32_466_000 / 7_143_240) < 0.001,
       detail: dscr?.tiers.map((t) => `${t.tier}:${t.ratio?.toFixed(3)}`).join(" ") ?? "no dscr",
+    });
+
+    // 8. QuickBooks Desktop file handling: never fake-parsed, always guided.
+    checks.push({
+      name: "qb_desktop_detector",
+      pass:
+        isQuickBooksDesktopFile("Company Backup.QBB") &&
+        isQuickBooksDesktopFile("acme.qbw") &&
+        !isQuickBooksDesktopFile("chase-download.qbo"),
+      detail: "qbb/qbw detected as unsupported; unrelated .qbo bank-download format is not",
+    });
+    const { data: qbDoc, error: qbError } = await supabase
+      .from("documents")
+      .insert({
+        org_id: orgId,
+        engagement_id: engagementId,
+        file_name: "Company Backup.QBB",
+        storage_path: `${orgId}/${engagementId}/selftest-qbb`,
+        doc_type: "other",
+        classification_source: "rules",
+        classification_confidence: 1,
+        status: "unsupported",
+        parse_error: QUICKBOOKS_DESKTOP_GUIDANCE,
+      })
+      .select("id,status,parse_error")
+      .single();
+    checks.push({
+      name: "qb_desktop_upload_handling",
+      pass: !qbError && qbDoc?.status === "unsupported" && !!qbDoc?.parse_error?.includes("QuickBooks Desktop"),
+      detail: qbError?.message ?? `status=${qbDoc?.status}`,
     });
 
     const allPass = checks.every((c) => c.pass);

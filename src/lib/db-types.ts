@@ -33,7 +33,7 @@ export interface DocumentRow {
   account_hint: string | null;
   classification_confidence: number | null;
   classification_source: "rules" | "ai" | "user" | null;
-  status: "uploaded" | "needs_review" | "confirmed" | "parsed" | "failed";
+  status: "uploaded" | "needs_review" | "confirmed" | "parsed" | "failed" | "unsupported";
   parse_error: string | null;
   created_at: string;
 }
