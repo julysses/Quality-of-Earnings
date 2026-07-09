@@ -40,3 +40,14 @@ export function formatCentsShort(cents: Cents): string {
   const body = `$${dollars.toLocaleString("en-US")}`;
   return negative ? `(${body})` : body;
 }
+
+// Multiples convention (one decimal, trailing "x") per standard lending/IB
+// model formatting, e.g. "1.3x". Null (undefined debt service) reads "n/a".
+export function formatMultiple(ratio: number | null): string {
+  if (ratio == null) return "n/a";
+  return `${ratio.toFixed(2)}x`;
+}
+
+export function formatPct(bps: number): string {
+  return `${(bps / 100).toFixed(2)}%`;
+}

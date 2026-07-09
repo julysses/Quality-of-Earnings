@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { loadAnalysis } from "@/lib/server/load";
 import { Badge, Callout, Card, Table, Td, Th } from "@/components/ui";
-import { formatCents, formatCentsShort } from "@/lib/money";
+import { formatCents, formatCentsShort, formatMultiple } from "@/lib/money";
+import { SBA_FLOOR, MARKET_THRESHOLD, type DscrTierKey } from "@/lib/engine/dscr";
 import { FinalizeButton } from "@/components/finalize";
 import { PrintButton } from "@/components/print-button";
 import { LogoGlyph } from "@/components/logo";
@@ -15,10 +16,16 @@ function gateFixHref(engagementId: string, gate: Gate): string {
   return `${base}/documents`;
 }
 
+const DSCR_TIER_LABELS: Record<DscrTierKey, string> = {
+  all_addbacks: "Adjusted EBITDA (all add-backs)",
+  documented_only: "Adjusted EBITDA (documented only)",
+  sde: "Seller's discretionary earnings",
+};
+
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { bundle, analysis } = await loadAnalysis(id);
-  const { bridge, poc, gates, gatesPassed, completeness } = analysis;
+  const { bridge, poc, dscr, gates, gatesPassed, completeness } = analysis;
   const e = bundle.engagement;
   const finalized = e.status === "finalized";
 
@@ -261,8 +268,47 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           </Table>
         </section>
 
+        {dscr && dscr.tranches.length > 0 && (
+          <section className="mb-10">
+            <h2 className="mb-3 text-lg font-semibold text-ink">5. Lender debt service coverage</h2>
+            <p className="mb-3 text-xs leading-relaxed text-muted">
+              DSCR = earnings ÷ total year-one scheduled debt service ({formatCentsShort(dscr.totalAnnualDebtServiceCents)}
+              ) across {dscr.tranches.length} tranche(s). SBA SOP 50 10 8 requires at least{" "}
+              {formatMultiple(SBA_FLOOR)}; most lenders target {formatMultiple(MARKET_THRESHOLD)} or higher.
+            </p>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Earnings basis</Th>
+                  <Th align="right">Amount</Th>
+                  <Th align="right">DSCR</Th>
+                  <Th>Result</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {dscr.tiers.map((t) => (
+                  <tr key={t.tier}>
+                    <Td>{DSCR_TIER_LABELS[t.tier]}</Td>
+                    <Td align="right">{formatCents(t.earningsCents)}</Td>
+                    <Td align="right" className="font-semibold">
+                      {formatMultiple(t.ratio)}
+                    </Td>
+                    <Td>
+                      {t.meetsMarketThreshold
+                        ? "Clears market threshold"
+                        : t.meetsSbaFloor
+                          ? "Meets SBA floor only"
+                          : "Below SBA floor"}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </section>
+        )}
+
         <section className="mb-10">
-          <h2 className="mb-3 text-lg font-semibold text-ink">5. Disclosed exceptions</h2>
+          <h2 className="mb-3 text-lg font-semibold text-ink">{dscr && dscr.tranches.length > 0 ? "6" : "5"}. Disclosed exceptions</h2>
           {bundle.gateAcks.length === 0 &&
           completeness.breaks.length === 0 &&
           poc.flaggedMonths.length === 0 ? (
@@ -287,7 +333,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         </section>
 
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-ink">6. Source document index</h2>
+          <h2 className="mb-3 text-lg font-semibold text-ink">{dscr && dscr.tranches.length > 0 ? "7" : "6"}. Source document index</h2>
           <Table>
             <thead>
               <tr>

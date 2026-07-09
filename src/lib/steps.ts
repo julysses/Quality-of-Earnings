@@ -8,7 +8,7 @@ import type { EngagementBundle } from "./analysis";
 export type StepState = "complete" | "current" | "attention" | "todo";
 
 export interface Step {
-  key: "upload" | "verify" | "poc" | "addbacks" | "report";
+  key: "upload" | "verify" | "poc" | "addbacks" | "dscr" | "report";
   label: string;
   href: string;
   state: StepState;
@@ -55,6 +55,7 @@ export function computeSteps(bundle: EngagementBundle, analysis: Analysis): Step
   const verifyComplete = uploadComplete && needsReview === 0 && failed === 0 && completenessOk;
   const pocComplete = uploadComplete && openPocMonths.length === 0;
   const addbacksComplete = bundle.adjustments.length > 0 && evidenceOk;
+  const dscrComplete = bundle.dealStructure != null;
   const reportComplete = finalized;
 
   const defs: Array<{
@@ -104,6 +105,16 @@ export function computeSteps(bundle: EngagementBundle, analysis: Analysis): Step
       hint: addbacksComplete
         ? `${bundle.adjustments.length} evidence-linked adjustment(s).`
         : "Adjust EBITDA for owner and one-time items — with evidence.",
+    },
+    {
+      key: "dscr",
+      label: "Lender terms",
+      href: `${base}/dscr`,
+      complete: dscrComplete,
+      count: 0,
+      hint: dscrComplete
+        ? "Deal structure entered — DSCR is shown in the report."
+        : "Optional: enter the proposed deal structure to show debt service coverage.",
     },
     {
       key: "report",
@@ -163,9 +174,20 @@ function nextAction(
     return {
       title: "Report finalized",
       body: "Every check passed or carries a disclosed exception. Share the report with buyers and lenders.",
-      href: defs[4].href,
+      href: defs[defs.length - 1].href,
       cta: "View report",
       done: true,
+    };
+  }
+  // Lender terms are optional — never the blocking "next" action. If it's the
+  // only thing left, point straight at the report instead of nagging for it.
+  if (defs[firstIncomplete].key === "dscr") {
+    const reportStep = defs[defs.length - 1];
+    return {
+      title: "Next: review the report",
+      body: "Everything required is in place. Optionally add the proposed deal structure under Lender terms to show debt service coverage — or go straight to the report.",
+      href: reportStep.href,
+      cta: "Open report",
     };
   }
   const step = defs[firstIncomplete];

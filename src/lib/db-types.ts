@@ -89,3 +89,19 @@ export interface GateAckRow {
   gate_key: string;
   note: string;
 }
+
+export interface DealStructureRow {
+  id: string;
+  purchase_price_cents: number;
+  equity_injection_cents: number;
+  senior_debt_cents: number;
+  senior_rate_bps: number;
+  senior_term_months: number;
+  seller_note_cents: number;
+  seller_note_rate_bps: number;
+  seller_note_term_months: number;
+  seller_note_io_months: number;
+  existing_debt_cents: number;
+  existing_debt_rate_bps: number;
+  existing_debt_term_months: number;
+}

@@ -136,6 +136,46 @@ export async function GET(req: NextRequest) {
         .join(" "),
     });
 
+    // 7. Deal structure → DSCR. Golden values (see tests/dscr.test.ts):
+    // senior debt $400k @10.00%/120mo -> $63,432.36 year-1 debt service;
+    // seller note $100k @8.00%/60mo w/ 12mo IO -> $8,000.04. Total $71,432.40.
+    await supabase.from("deal_structures").upsert(
+      {
+        org_id: orgId,
+        engagement_id: engagementId,
+        purchase_price_cents: 550_000_00,
+        equity_injection_cents: 50_000_00,
+        senior_debt_cents: 400_000_00,
+        senior_rate_bps: 1000,
+        senior_term_months: 120,
+        seller_note_cents: 100_000_00,
+        seller_note_rate_bps: 800,
+        seller_note_term_months: 60,
+        seller_note_io_months: 12,
+        existing_debt_cents: 0,
+        existing_debt_rate_bps: 0,
+        existing_debt_term_months: 0,
+        created_by: userId,
+      },
+      { onConflict: "engagement_id" },
+    );
+    const bundle3 = (await getEngagementBundle(supabase, engagementId))!;
+    const analysis3 = analyzeEngagement(bundle3);
+    const dscr = analysis3.dscr;
+    checks.push({
+      name: "dscr_debt_service",
+      pass: dscr != null && dscr.totalAnnualDebtServiceCents === 7_143_240,
+      detail: `total year-1 debt service: ${dscr?.totalAnnualDebtServiceCents} (expect 7143240)`,
+    });
+    checks.push({
+      name: "dscr_ratios",
+      pass:
+        dscr != null &&
+        dscr.tiers.every((t) => t.ratio != null && t.meetsMarketThreshold) &&
+        Math.abs((dscr.tiers.find((t) => t.tier === "all_addbacks")!.ratio ?? 0) - 32_466_000 / 7_143_240) < 0.001,
+      detail: dscr?.tiers.map((t) => `${t.tier}:${t.ratio?.toFixed(3)}`).join(" ") ?? "no dscr",
+    });
+
     const allPass = checks.every((c) => c.pass);
     return NextResponse.json(
       { allPass, engagementId, checks },

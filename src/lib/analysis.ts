@@ -6,6 +6,7 @@ import type {
   AccountRow,
   AdjustmentRow,
   ClassificationRow,
+  DealStructureRow,
   DocumentRow,
   EngagementRow,
   EvidenceRow,
@@ -16,6 +17,7 @@ import type {
 import { computeProofOfCash, type ProofOfCash } from "./engine/proof-of-cash";
 import { computeBridge, scrutinyFromEvidence, type Bridge, type BridgeAdjustment } from "./engine/ebitda-bridge";
 import { checkCompleteness, type CompletenessResult } from "./engine/continuity";
+import { computeDscr, type DebtTranche, type DscrTierResult } from "./engine/dscr";
 import type { BankTxn, Fact, TxnClass } from "./types";
 
 export interface EngagementBundle {
@@ -28,6 +30,7 @@ export interface EngagementBundle {
   adjustments: AdjustmentRow[];
   evidence: EvidenceRow[];
   gateAcks: GateAckRow[];
+  dealStructure: DealStructureRow | null;
 }
 
 export interface Gate {
@@ -39,6 +42,12 @@ export interface Gate {
   acknowledged: boolean;
 }
 
+export interface DscrAnalysis {
+  tiers: DscrTierResult[];
+  totalAnnualDebtServiceCents: number;
+  tranches: DebtTranche[];
+}
+
 export interface Analysis {
   txns: BankTxn[];
   classMap: Map<string, TxnClass>;
@@ -47,6 +56,7 @@ export interface Analysis {
   poc: ProofOfCash;
   completeness: CompletenessResult;
   bridge: Bridge;
+  dscr: DscrAnalysis | null;
   gates: Gate[];
   gatesPassed: boolean;
 }
@@ -101,6 +111,7 @@ export function analyzeEngagement(bundle: EngagementBundle): Analysis {
     };
   });
   const bridge = computeBridge(facts, bridgeAdjustments);
+  const dscr = computeDscrAnalysis(bundle.dealStructure, bridge);
 
   const gates = evaluateGates(bundle, poc, completeness, evidenceByAdjustment);
 
@@ -112,9 +123,44 @@ export function analyzeEngagement(bundle: EngagementBundle): Analysis {
     poc,
     completeness,
     bridge,
+    dscr,
     gates,
     gatesPassed: gates.every((g) => g.passed || g.acknowledged),
   };
+}
+
+function computeDscrAnalysis(deal: DealStructureRow | null, bridge: Bridge): DscrAnalysis | null {
+  if (!deal) return null;
+
+  const tranches: DebtTranche[] = [
+    {
+      name: "Senior debt",
+      principalCents: deal.senior_debt_cents,
+      annualRateBps: deal.senior_rate_bps,
+      termMonths: deal.senior_term_months,
+    },
+    {
+      name: "Seller note",
+      principalCents: deal.seller_note_cents,
+      annualRateBps: deal.seller_note_rate_bps,
+      termMonths: deal.seller_note_term_months,
+      interestOnlyMonths: deal.seller_note_io_months,
+    },
+    {
+      name: "Existing debt",
+      principalCents: deal.existing_debt_cents,
+      annualRateBps: deal.existing_debt_rate_bps,
+      termMonths: deal.existing_debt_term_months,
+    },
+  ].filter((t) => t.principalCents > 0 && t.termMonths > 0);
+
+  const { tiers, totalAnnualDebtServiceCents } = computeDscr(tranches, {
+    allAddbacksCents: bridge.adjustedEbitdaCents,
+    documentedOnlyCents: bridge.adjustedEbitdaDocumentedCents,
+    sdeCents: bridge.sdeCents,
+  });
+
+  return { tiers, totalAnnualDebtServiceCents, tranches };
 }
 
 function evaluateGates(

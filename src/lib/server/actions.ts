@@ -410,3 +410,91 @@ export async function seedDemoEngagement() {
   const engagementId = await seedDemoCore(supabase, orgId, user.id);
   redirect(`/engagements/${engagementId}`);
 }
+
+// ── Deal structure / DSCR ───────────────────────────────────────────────────
+
+function dollarsToCents(raw: FormDataEntryValue | null): number {
+  const n = Number(String(raw ?? "0").replace(/[$,\s]/g, ""));
+  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+}
+function intOrZero(raw: FormDataEntryValue | null): number {
+  const n = Number(raw ?? 0);
+  return Number.isFinite(n) ? Math.round(n) : 0;
+}
+function pctToBps(raw: FormDataEntryValue | null): number {
+  const n = Number(raw ?? 0);
+  return Number.isFinite(n) ? Math.round(n * 100) : 0; // 9.5% -> 950 bps
+}
+
+export async function saveDealStructure(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  const engagementId = String(formData.get("engagement_id"));
+
+  const { data: engagement } = await supabase
+    .from("engagements")
+    .select("org_id")
+    .eq("id", engagementId)
+    .single();
+  if (!engagement) throw new Error("Engagement not found.");
+
+  const row = {
+    org_id: engagement.org_id,
+    engagement_id: engagementId,
+    purchase_price_cents: dollarsToCents(formData.get("purchase_price")),
+    equity_injection_cents: dollarsToCents(formData.get("equity_injection")),
+    senior_debt_cents: dollarsToCents(formData.get("senior_debt")),
+    senior_rate_bps: pctToBps(formData.get("senior_rate")),
+    senior_term_months: intOrZero(formData.get("senior_term_months")),
+    seller_note_cents: dollarsToCents(formData.get("seller_note")),
+    seller_note_rate_bps: pctToBps(formData.get("seller_note_rate")),
+    seller_note_term_months: intOrZero(formData.get("seller_note_term_months")),
+    seller_note_io_months: intOrZero(formData.get("seller_note_io_months")),
+    existing_debt_cents: dollarsToCents(formData.get("existing_debt")),
+    existing_debt_rate_bps: pctToBps(formData.get("existing_debt_rate")),
+    existing_debt_term_months: intOrZero(formData.get("existing_debt_term_months")),
+    created_by: user.id,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("deal_structures")
+    .upsert(row, { onConflict: "engagement_id" });
+  if (error) throw new Error(error.message);
+
+  await logAudit(supabase, {
+    orgId: engagement.org_id,
+    engagementId,
+    userId: user.id,
+    action: "deal_structure.saved",
+    entityType: "deal_structure",
+    detail: {
+      purchasePriceCents: row.purchase_price_cents,
+      seniorDebtCents: row.senior_debt_cents,
+      sellerNoteCents: row.seller_note_cents,
+      existingDebtCents: row.existing_debt_cents,
+    },
+  });
+  revalidatePath(`/engagements/${engagementId}`, "layout");
+}
+
+export async function deleteDealStructure(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  const engagementId = String(formData.get("engagement_id"));
+
+  const { data: engagement } = await supabase
+    .from("engagements")
+    .select("org_id")
+    .eq("id", engagementId)
+    .single();
+  if (!engagement) throw new Error("Engagement not found.");
+
+  await supabase.from("deal_structures").delete().eq("engagement_id", engagementId);
+  await logAudit(supabase, {
+    orgId: engagement.org_id,
+    engagementId,
+    userId: user.id,
+    action: "deal_structure.deleted",
+    entityType: "deal_structure",
+  });
+  revalidatePath(`/engagements/${engagementId}`, "layout");
+}

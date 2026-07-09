@@ -4,6 +4,7 @@ import type {
   AccountRow,
   AdjustmentRow,
   ClassificationRow,
+  DealStructureRow,
   DocumentRow,
   EngagementRow,
   EvidenceRow,
@@ -25,7 +26,7 @@ export async function getEngagementBundle(
     .maybeSingle<EngagementRow>();
   if (!engagement) return null;
 
-  const [documents, accounts, transactions, classifications, facts, adjustments, evidence, gateAcks] =
+  const [documents, accounts, transactions, classifications, facts, adjustments, evidence, gateAcks, dealStructure] =
     await Promise.all([
       supabase
         .from("documents")
@@ -81,6 +82,16 @@ export async function getEngagementBundle(
         .select("gate_key,note")
         .eq("engagement_id", engagementId)
         .then((r) => (r.data ?? []) as GateAckRow[]),
+      supabase
+        .from("deal_structures")
+        .select(
+          "id,purchase_price_cents,equity_injection_cents,senior_debt_cents,senior_rate_bps,senior_term_months," +
+            "seller_note_cents,seller_note_rate_bps,seller_note_term_months,seller_note_io_months," +
+            "existing_debt_cents,existing_debt_rate_bps,existing_debt_term_months",
+        )
+        .eq("engagement_id", engagementId)
+        .maybeSingle()
+        .then((r) => (r.data ?? null) as DealStructureRow | null),
     ]);
 
   return {
@@ -93,5 +104,6 @@ export async function getEngagementBundle(
     adjustments,
     evidence,
     gateAcks,
+    dealStructure,
   };
 }
