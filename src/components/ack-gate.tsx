@@ -16,7 +16,7 @@ export function AckGateForm({
   const [pending, startTransition] = useTransition();
   return (
     <form action={(fd) => startTransition(() => acknowledgeGate(fd))} className="space-y-2">
-      <p className="text-xs text-slate-500">{label}</p>
+      <p className="text-xs text-muted">{label}</p>
       <div className="flex items-center gap-2">
         <input type="hidden" name="engagement_id" value={engagementId} />
         <input type="hidden" name="gate_key" value={gateKey} />

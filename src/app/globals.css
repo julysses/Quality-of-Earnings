@@ -2,26 +2,86 @@
 @import "@uppy/core/css/style.min.css";
 @import "@uppy/dashboard/css/style.min.css";
 
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-}
+/* ── Design tokens — "institutional light" ─────────────────────────────────
+   Deep-navy primary on white/soft-gray surfaces; emerald/amber/red reserved
+   for status. Dark mode is its own selected scale, not an automatic flip. */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --ink: #16263f;
+  --muted: #5a6b83;
+  --edge: #e2e7ee;
+  --edge-strong: #c9d2de;
+  --primary: #14406e;
+  --primary-hover: #0e3156;
+  --on-primary: #ffffff;
+  --good: #0a7c5a;
+  --good-bg: #e2f4ec;
+  --warn: #9a5b00;
+  --warn-bg: #fdf0da;
+  --bad: #b42323;
+  --bad-bg: #fbe7e7;
+  --info-bg: #e5eef8;
+  --shadow-card: 0 1px 2px rgb(22 38 63 / 0.06), 0 1px 3px rgb(22 38 63 / 0.1);
+  /* Chart palette — validated (dataviz six checks) against the light surface */
+  --chart-total: #2f6bb0;
+  --chart-up: #0e8a63;
+  --chart-down: #c03535;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b1220;
-    --foreground: #e2e8f0;
+    --bg: #0a1322;
+    --surface: #111e33;
+    --surface-2: #1a2a45;
+    --ink: #e7edf6;
+    --muted: #97a8c0;
+    --edge: #263a58;
+    --edge-strong: #38507a;
+    --primary: #3a6aa6;
+    --primary-hover: #4a7cba;
+    --on-primary: #ffffff;
+    --good: #4cc596;
+    --good-bg: #11342a;
+    --warn: #e2a94e;
+    --warn-bg: #3a2c12;
+    --bad: #e0716d;
+    --bad-bg: #3d1a1a;
+    --info-bg: #16283f;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+    /* Chart palette — validated against the dark surface */
+    --chart-total: #5a92d4;
+    --chart-up: #26a97f;
+    --chart-down: #d9605c;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-edge: var(--edge);
+  --color-edge-strong: var(--edge-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-good: var(--good);
+  --color-good-bg: var(--good-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+  --color-info-bg: var(--info-bg);
+  --font-report: Georgia, "Times New Roman", Times, serif;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--ink);
   font-family:
     ui-sans-serif,
     system-ui,
@@ -31,4 +91,61 @@ body {
     "Helvetica Neue",
     Arial,
     sans-serif;
+  font-feature-settings: "cv02", "cv03";
+}
+
+/* ── Uppy theming to match the design system ──────────────────────────────── */
+
+.uppy-Dashboard-inner {
+  background: var(--surface) !important;
+  border: 1.5px dashed var(--edge-strong) !important;
+  border-radius: 12px !important;
+}
+.uppy-Dashboard-AddFiles {
+  border: none !important;
+}
+.uppy-Dashboard-AddFiles-title {
+  color: var(--ink) !important;
+}
+.uppy-Dashboard-note {
+  color: var(--muted) !important;
+}
+.uppy-Dashboard-browse {
+  color: var(--primary) !important;
+}
+.uppy-StatusBar,
+.uppy-DashboardContent-bar {
+  background: var(--surface-2) !important;
+  border-color: var(--edge) !important;
+}
+.uppy-Dashboard-Item {
+  border-color: var(--edge) !important;
+}
+
+/* ── Report document & print styles ───────────────────────────────────────── */
+
+.report-doc h2 {
+  font-family: var(--font-report);
+  letter-spacing: -0.01em;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-plain {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .report-doc section {
+    break-inside: avoid;
+  }
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
 }

@@ -3,7 +3,17 @@ import { loadAnalysis } from "@/lib/server/load";
 import { Badge, Callout, Card, Table, Td, Th } from "@/components/ui";
 import { formatCents, formatCentsShort } from "@/lib/money";
 import { FinalizeButton } from "@/components/finalize";
+import { PrintButton } from "@/components/print-button";
+import { LogoGlyph } from "@/components/logo";
 import { ADJUSTMENT_CATEGORY_LABELS, DOC_TYPE_LABELS } from "@/lib/types";
+import type { Gate } from "@/lib/analysis";
+
+function gateFixHref(engagementId: string, gate: Gate): string {
+  const base = `/engagements/${engagementId}`;
+  if (gate.key.startsWith("poc:")) return `${base}/proof-of-cash#${gate.key.slice(4)}`;
+  if (gate.key === "evidence") return `${base}/ebitda-bridge`;
+  return `${base}/documents`;
+}
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,71 +21,86 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const { bridge, poc, gates, gatesPassed, completeness } = analysis;
   const e = bundle.engagement;
   const finalized = e.status === "finalized";
-  const openGates = gates.filter((g) => !g.passed && !g.acknowledged);
 
   return (
-    <div className="space-y-4">
-      {/* Validation gates */}
+    <div className="space-y-5">
+      {/* Pre-flight checklist */}
       <Card
-        title="Validation gates"
-        subtitle="The report can only be finalized when every gate passes or carries a disclosed acknowledgement — that discipline is what makes the output defensible."
+        className="no-print"
+        title="Pre-flight checks"
+        subtitle="The report finalizes only when every check passes or carries a disclosed acknowledgement — that discipline is what makes it defensible."
         actions={
-          finalized ? (
-            <Badge tone="green">Finalized</Badge>
-          ) : (
-            <FinalizeButton engagementId={id} disabled={!gatesPassed} />
-          )
+          <div className="flex items-center gap-2">
+            <PrintButton />
+            {finalized ? (
+              <Badge tone="green" dot>
+                Finalized
+              </Badge>
+            ) : (
+              <FinalizeButton engagementId={id} disabled={!gatesPassed} />
+            )}
+          </div>
         }
       >
-        <ul className="space-y-2">
+        <ul className="divide-y divide-edge/60">
           {gates.map((g) => (
-            <li key={g.key} className="flex items-start gap-2 text-sm">
-              <span className="mt-0.5">
-                {g.passed ? (
-                  <Badge tone="green">pass</Badge>
-                ) : g.acknowledged ? (
-                  <Badge tone="yellow">acknowledged</Badge>
-                ) : (
-                  <Badge tone="red">open</Badge>
-                )}
-              </span>
-              <div>
-                <p className="font-medium">{g.label}</p>
-                <p className="text-xs text-slate-500">{g.detail}</p>
+            <li key={g.key} className="flex items-start justify-between gap-3 py-2.5">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5">
+                  {g.passed ? (
+                    <Badge tone="green">pass</Badge>
+                  ) : g.acknowledged ? (
+                    <Badge tone="yellow">disclosed</Badge>
+                  ) : (
+                    <Badge tone="red">open</Badge>
+                  )}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-ink">{g.label}</p>
+                  <p className="text-xs leading-relaxed text-muted">{g.detail}</p>
+                </div>
               </div>
+              {!g.passed && !g.acknowledged && (
+                <Link
+                  href={gateFixHref(id, g)}
+                  className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                >
+                  Fix →
+                </Link>
+              )}
             </li>
           ))}
         </ul>
-        {openGates.length > 0 && (
-          <p className="mt-3 text-xs text-slate-500">
-            Resolve open gates on the{" "}
-            <Link href={`/engagements/${id}/documents`} className="underline">
-              Documents
-            </Link>{" "}
-            and{" "}
-            <Link href={`/engagements/${id}/proof-of-cash`} className="underline">
-              Proof of Cash
-            </Link>{" "}
-            tabs.
-          </p>
-        )}
       </Card>
 
-      {/* Report preview */}
-      <article className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <header className="mb-8 border-b border-slate-200 pb-6 text-center dark:border-slate-700">
-          <p className="text-xs uppercase tracking-widest text-slate-400">
-            Quality of Earnings — Lite {finalized ? "" : "(DRAFT)"}
-          </p>
-          <h1 className="mt-2 text-2xl font-bold">{e.entity_name}</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Analysis period {e.period_start.slice(0, 7)} through {e.period_end.slice(0, 7)}
+      {!finalized && !gatesPassed && (
+        <Callout tone="warn" title="This is a draft">
+          Finalize is disabled until every check above passes or carries a disclosed
+          acknowledgement. The draft below updates live as you work.
+        </Callout>
+      )}
+
+      {/* The report document */}
+      <article className="report-doc print-plain rounded-xl border border-edge bg-surface p-8 sm:p-12" style={{ boxShadow: "var(--shadow-card)" }}>
+        <header className="mb-10 border-b-2 border-edge pb-8">
+          <div className="flex items-center justify-between">
+            <LogoGlyph className="h-9 w-9" />
+            <p className="text-xs font-semibold tracking-widest text-muted uppercase">
+              Quality of Earnings — Lite {finalized ? "" : "· Draft"}
+            </p>
+          </div>
+          <h1 className="mt-6 text-3xl font-bold tracking-tight text-ink" style={{ fontFamily: "var(--font-report)" }}>
+            {e.entity_name}
+          </h1>
+          <p className="mt-2 text-sm text-muted">
+            Analysis period {e.period_start.slice(0, 7)} through {e.period_end.slice(0, 7)} ·
+            Prepared with QoE Lite
           </p>
         </header>
 
-        <section className="mb-8">
-          <h2 className="mb-2 text-lg font-semibold">1. Notice to readers</h2>
-          <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+        <section className="mb-10">
+          <h2 className="mb-3 text-lg font-semibold text-ink">1. Notice to readers</h2>
+          <p className="text-sm leading-relaxed text-muted">
             This report was prepared with QoE Lite from documents and data provided by the seller.
             It is not an audit, review, or attestation engagement under AICPA standards, and no
             opinion is expressed on the financial statements as a whole. Every figure in this
@@ -85,8 +110,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           </p>
         </section>
 
-        <section className="mb-8">
-          <h2 className="mb-2 text-lg font-semibold">2. Executive summary</h2>
+        <section className="mb-10">
+          <h2 className="mb-3 text-lg font-semibold text-ink">2. Executive summary</h2>
           <Table>
             <tbody>
               <tr>
@@ -125,8 +150,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           </Table>
         </section>
 
-        <section className="mb-8">
-          <h2 className="mb-2 text-lg font-semibold">3. Quality of earnings — EBITDA bridge</h2>
+        <section className="mb-10">
+          <h2 className="mb-3 text-lg font-semibold text-ink">3. Quality of earnings — EBITDA bridge</h2>
           <Table>
             <tbody>
               <tr>
@@ -152,8 +177,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             </tbody>
           </Table>
           {bridge.adjustments.length > 0 && (
-            <div className="mt-4">
-              <h3 className="mb-1 text-sm font-semibold">Adjustments</h3>
+            <div className="mt-5">
+              <h3 className="mb-2 text-sm font-semibold text-ink">Adjustments</h3>
               <Table>
                 <thead>
                   <tr>
@@ -170,9 +195,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                       <tr key={a.id}>
                         <Td>
                           <span className="font-medium">{a.name}</span>
-                          {row && (
-                            <p className="max-w-96 text-xs text-slate-500">{row.rationale}</p>
-                          )}
+                          {row && <p className="max-w-96 text-xs leading-relaxed text-muted">{row.rationale}</p>}
                         </Td>
                         <Td>{ADJUSTMENT_CATEGORY_LABELS[a.category]}</Td>
                         <Td className="text-xs">
@@ -190,9 +213,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                     <Td className="font-semibold">Adjusted EBITDA</Td>
                     <Td></Td>
                     <Td></Td>
-                    <Td align="right" className="font-semibold">
-                      {formatCents(bridge.adjustedEbitdaCents)}
-                    </Td>
+                    <Td align="right" className="font-semibold">{formatCents(bridge.adjustedEbitdaCents)}</Td>
                   </tr>
                 </tbody>
               </Table>
@@ -200,13 +221,13 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           )}
         </section>
 
-        <section className="mb-8">
-          <h2 className="mb-2 text-lg font-semibold">4. Proof of cash</h2>
-          <p className="mb-2 text-xs text-slate-500">
+        <section className="mb-10">
+          <h2 className="mb-3 text-lg font-semibold text-ink">4. Proof of cash</h2>
+          <p className="mb-3 text-xs leading-relaxed text-muted">
             Book revenue and cash operating expenses reconciled to bank deposits and disbursements
             by month, across {bundle.accounts.length} account(s), with inter-account transfers and
-            owner draws excluded. Tolerance: greater of $2,500 or 0.5% of monthly revenue.
-            Timing differences (accrual vs. cash) are not yet adjusted in this lite analysis.
+            owner draws excluded. Tolerance: greater of $2,500 or 0.5% of monthly revenue. Timing
+            differences (accrual vs. cash) are not yet adjusted in this lite analysis.
           </p>
           <Table>
             <thead>
@@ -226,12 +247,12 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                   <Td>{m.month}</Td>
                   <Td align="right">{formatCents(m.revenue.adjustedBankCents)}</Td>
                   <Td align="right">{formatCents(m.revenue.bookCents)}</Td>
-                  <Td align="right" className={m.revenue.flagged ? "font-semibold text-red-600" : ""}>
+                  <Td align="right" className={m.revenue.flagged ? "font-semibold text-bad" : ""}>
                     {formatCents(m.revenue.varianceCents)}
                   </Td>
                   <Td align="right">{formatCents(m.expense.adjustedBankCents)}</Td>
                   <Td align="right">{formatCents(m.expense.bookCents)}</Td>
-                  <Td align="right" className={m.expense.flagged ? "font-semibold text-red-600" : ""}>
+                  <Td align="right" className={m.expense.flagged ? "font-semibold text-bad" : ""}>
                     {formatCents(m.expense.varianceCents)}
                   </Td>
                 </tr>
@@ -240,25 +261,25 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           </Table>
         </section>
 
-        <section className="mb-8">
-          <h2 className="mb-2 text-lg font-semibold">5. Disclosed exceptions</h2>
+        <section className="mb-10">
+          <h2 className="mb-3 text-lg font-semibold text-ink">5. Disclosed exceptions</h2>
           {bundle.gateAcks.length === 0 &&
           completeness.breaks.length === 0 &&
           poc.flaggedMonths.length === 0 ? (
-            <p className="text-sm text-slate-500">None.</p>
+            <p className="text-sm text-muted">None.</p>
           ) : (
-            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600 dark:text-slate-300">
+            <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted">
               {bundle.gateAcks.map((g) => (
                 <li key={g.gate_key}>
-                  <span className="font-medium">{g.gate_key}:</span> {g.note}
+                  <span className="font-medium text-ink">{g.gate_key}:</span> {g.note}
                 </li>
               ))}
               {poc.flaggedMonths
                 .filter((m) => !bundle.gateAcks.some((g) => g.gate_key === `poc:${m}`))
                 .map((m) => (
                   <li key={m}>
-                    <span className="font-medium">poc:{m}:</span> unresolved proof-of-cash variance
-                    (open item — resolve before finalizing).
+                    <span className="font-medium text-ink">poc:{m}:</span> unresolved proof-of-cash
+                    variance (open item — resolve before finalizing).
                   </li>
                 ))}
             </ul>
@@ -266,7 +287,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-semibold">6. Source document index</h2>
+          <h2 className="mb-3 text-lg font-semibold text-ink">6. Source document index</h2>
           <Table>
             <thead>
               <tr>
@@ -293,13 +314,6 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           </Table>
         </section>
       </article>
-
-      {!finalized && !gatesPassed && (
-        <Callout tone="warn" title="This is a draft">
-          Finalize is disabled until every validation gate passes or carries a disclosed
-          acknowledgement.
-        </Callout>
-      )}
     </div>
   );
 }

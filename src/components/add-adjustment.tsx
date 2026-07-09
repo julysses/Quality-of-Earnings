@@ -83,8 +83,8 @@ export function AddAdjustmentForm({
       <div className="grid gap-3 md:grid-cols-2">
         <div>
           <Label>Evidence — source documents</Label>
-          <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-slate-200 p-2 text-sm dark:border-slate-700">
-            {documents.length === 0 && <p className="text-xs text-slate-400">No documents uploaded yet.</p>}
+          <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-edge p-2 text-sm">
+            {documents.length === 0 && <p className="text-xs text-muted">No documents uploaded yet.</p>}
             {documents.map((d) => (
               <label key={d.id} className="flex items-center gap-2">
                 <input type="checkbox" name="evidence_document" value={d.id} />
@@ -101,7 +101,7 @@ export function AddAdjustmentForm({
             onChange={(e) => setSearch(e.target.value)}
             className="mb-1"
           />
-          <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-slate-200 p-2 text-sm dark:border-slate-700">
+          <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-edge p-2 text-sm">
             {filteredTxns.map((t) => (
               <label key={t.id} className="flex items-center gap-2">
                 <input type="checkbox" name="evidence_transaction" value={t.id} />
@@ -112,7 +112,7 @@ export function AddAdjustmentForm({
         </div>
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         At least one piece of evidence is required — adjustments without support can&apos;t be saved,
         because lenders will reject them anyway.
       </p>
