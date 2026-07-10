@@ -3,8 +3,21 @@
 // so column gaps can be measured and turned into explicit multi-space
 // separators — letting bank/P&L PDF parsers tokenize columns the same way
 // a fixed-width text table would be read.
+//
+// pdfjs-dist's module top-level code references the browser DOMMatrix API
+// unconditionally, which crashes on load in server runtimes that don't
+// provide it (observed on Vercel's Node.js serverless runtime, though not
+// in a plain local Node process). getDocument must be a DYNAMIC import so
+// the polyfill below is guaranteed to run first — a static import would be
+// hoisted ahead of any same-file setup code.
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import DOMMatrixPolyfill from "dommatrix";
+
+function ensureDomMatrixPolyfill(): void {
+  if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix === "undefined") {
+    (globalThis as { DOMMatrix?: unknown }).DOMMatrix = DOMMatrixPolyfill;
+  }
+}
 
 export interface PdfLine {
   page: number;
@@ -28,6 +41,8 @@ const COLUMN_GAP_MULTIPLIER = 4; // gap > this many avg-char-widths = new column
 const WORD_GAP_MULTIPLIER = 0.6; // gap > this many avg-char-widths = word space
 
 export async function extractPdfTable(bytes: Uint8Array): Promise<PdfExtraction> {
+  ensureDomMatrixPolyfill();
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const pdf = await getDocument({
     data: bytes,
     useSystemFonts: true,

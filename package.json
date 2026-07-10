@@ -17,6 +17,7 @@
     "@uppy/dashboard": "^5.1.1",
     "@uppy/react": "^5.2.0",
     "@uppy/tus": "^5.1.1",
+    "dommatrix": "^0.1.1",
     "next": "15.5.20",
     "papaparse": "^5.5.4",
     "pdfjs-dist": "^6.1.200",
